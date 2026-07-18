@@ -1,0 +1,18 @@
+menu "WiSense FSR (pressure sensor)"
+
+    config WISENSE_FSR_GPIO
+        int "FSR analog signal GPIO"
+        default 34
+        help
+            ADC1 input for the FSR406 voltage divider (e.g. GPIO34 on ESP32 DevKit).
+            GPIO32/33/34/35/36/39 are ADC1-capable on ESP32.
+
+    config WISENSE_FSR_PRESS_THRESHOLD
+        int "Raw ADC threshold for \"on bed\" (0-4095)"
+        range 0 4095
+        default 1500
+        help
+            FSR raw reading at or above this value counts as pressure detected.
+            Tune with idf.py monitor while pressing the sensor.
+
+endmenu

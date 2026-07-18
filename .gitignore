@@ -48,6 +48,7 @@ firmware/**/build/
 # --- Local env ---
 .env
 
-# --- Local text logs (keep requirements.txt) ---
+# --- Local text logs (keep requirements.txt and ESP-IDF CMakeLists) ---
 *.txt
 !requirements.txt
+!firmware/**/CMakeLists.txt

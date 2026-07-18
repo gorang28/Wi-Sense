@@ -1,0 +1,36 @@
+menu "WiSense Classifier"
+
+    choice WISENSE_CLASSIFIER_BACKEND
+        prompt "Classifier backend"
+        default WISENSE_CLASSIFIER_PLACEHOLDER
+        help
+            Select the prediction source. Placeholder accepts UART keys
+            e/p/m/f. TinyML will replace it later without changing callers.
+
+        config WISENSE_CLASSIFIER_PLACEHOLDER
+            bool "UART placeholder (e/p/m/f)"
+
+        config WISENSE_CLASSIFIER_TINYML
+            bool "TinyML model (not implemented yet)"
+            depends on false
+            help
+                Reserved for the future on-device TinyML classifier.
+    endchoice
+
+    config WISENSE_CLASSIFIER_UART_NUM
+        int "Placeholder classifier UART port number"
+        depends on WISENSE_CLASSIFIER_PLACEHOLDER
+        range 0 2
+        default 0
+        help
+            UART used to read single-character class keys from idf.py monitor.
+            UART0 is the default console on most ESP32 DevKit boards.
+
+    config WISENSE_CLASSIFIER_UART_BAUD
+        int "Placeholder classifier UART baud rate"
+        depends on WISENSE_CLASSIFIER_PLACEHOLDER
+        default 115200
+        help
+            Must match the console baud rate used by idf.py monitor.
+
+endmenu

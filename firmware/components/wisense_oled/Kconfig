@@ -1,0 +1,30 @@
+menu "WiSense OLED (SSD1306)"
+
+    config WISENSE_OLED_I2C_PORT
+        int "I2C port number"
+        range 0 1
+        default 0
+
+    config WISENSE_OLED_I2C_SDA_GPIO
+        int "I2C SDA GPIO"
+        default 21
+        help
+            Default SDA pin for ESP32 DevKit hardware bring-up.
+
+    config WISENSE_OLED_I2C_SCL_GPIO
+        int "I2C SCL GPIO"
+        default 22
+        help
+            Default SCL pin for ESP32 DevKit hardware bring-up.
+
+    config WISENSE_OLED_I2C_ADDR
+        hex "SSD1306 I2C address"
+        default 0x3C
+        help
+            Most 128x64 modules use 0x3C. Some use 0x3D.
+
+    config WISENSE_OLED_I2C_FREQ_HZ
+        int "I2C clock frequency (Hz)"
+        default 400000
+
+endmenu

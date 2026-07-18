@@ -1,0 +1,29 @@
+menu "WiSense Emergency (Fall + button)"
+
+    config WISENSE_EMERGENCY_BUTTON_GPIO
+        int "Cancel button GPIO"
+        default 27
+        help
+            Push button input on RX. Default wiring: button to GND, GPIO with internal pull-up.
+
+    choice WISENSE_EMERGENCY_BUTTON_ACTIVE_LEVEL
+        prompt "GPIO level when button is pressed"
+        default WISENSE_EMERGENCY_BUTTON_ACTIVE_LOW
+        help
+            Most momentary buttons tie GPIO to GND when pressed (active LOW).
+
+        config WISENSE_EMERGENCY_BUTTON_ACTIVE_LOW
+            bool "LOW = pressed"
+
+        config WISENSE_EMERGENCY_BUTTON_ACTIVE_HIGH
+            bool "HIGH = pressed"
+    endchoice
+
+    config WISENSE_EMERGENCY_COUNTDOWN_SEC
+        int "Fall emergency countdown (seconds)"
+        range 1 120
+        default 15
+        help
+            Seconds shown on the OLED before notifying TX (ESP-NOW in a later module).
+
+endmenu

@@ -1,0 +1,58 @@
+menu "WiSense Light (Relay + LDR)"
+
+    config WISENSE_LIGHT_RELAY_GPIO
+        int "Relay control GPIO"
+        default 26
+        help
+            Signal/IN pin on the JQC3F-05VDC-C relay module.
+
+    choice WISENSE_LIGHT_RELAY_ON_LEVEL
+        prompt "GPIO level that energizes the relay"
+        default WISENSE_LIGHT_RELAY_ON_HIGH
+        help
+            HIGH = relay ON (GPIO 1 when occupied / light on, GPIO 0 when empty).
+
+        config WISENSE_LIGHT_RELAY_ON_LOW
+            bool "LOW = relay ON"
+
+        config WISENSE_LIGHT_RELAY_ON_HIGH
+            bool "HIGH = relay ON"
+    endchoice
+
+    config WISENSE_LIGHT_LDR_GPIO
+        int "LDR digital output GPIO"
+        default 32
+        help
+            DO pin on the LDR module (digital output).
+
+    choice WISENSE_LIGHT_LDR_DARK_LEVEL
+        prompt "LDR GPIO level when the room is dark"
+        default WISENSE_LIGHT_LDR_DARK_IS_HIGH
+        help
+            Adjust if your module inverts DO (potentiometer on the module).
+            Many LM393 boards read HIGH when dark and LOW when bright.
+
+        config WISENSE_LIGHT_LDR_DARK_IS_LOW
+            bool "LOW = dark"
+
+        config WISENSE_LIGHT_LDR_DARK_IS_HIGH
+            bool "HIGH = dark"
+    endchoice
+
+    config WISENSE_LIGHT_EMPTY_OFF_SEC
+        int "Seconds Empty before relay turns OFF"
+        range 1 3600
+        default 5
+        help
+            After Presence or Motion changes to Empty, turn the relay OFF
+            if the room stays Empty for this many seconds.
+
+    config WISENSE_LIGHT_LDR_POLL_MS
+        int "LDR poll interval while occupied (ms)"
+        range 100 10000
+        default 500
+        help
+            While Presence or Motion is active, poll the LDR at this interval
+            and turn the relay ON when the room becomes dark.
+
+endmenu
