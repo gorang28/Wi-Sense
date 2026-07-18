@@ -1,0 +1,53 @@
+# =============================================================================
+# WiSense / get-started
+#
+# TRACK (push to git):
+#   python/**/*.py, scripts/*.sh, docs/*.md
+#   requirements.txt, .env.example
+#   data/processed/preprocess_config.json  (small preprocess metadata)
+#
+# IGNORE (local / large / regeneratable):
+#   data/raw/**                      raw CSI CSVs, capture logs
+#   data/processed/*.npz             preprocessed tensors
+#   models/**                        trained model artifacts
+#   venv/, .venv/                    local Python virtualenv
+#   __pycache__/, *.pyc
+# =============================================================================
+
+# --- Local Python environment ---
+venv/
+.venv/
+tools/venv/
+
+# --- Raw CSI captures (multi-GB; back up outside git) ---
+data/raw/**/*.csv
+data/raw/**/*.log
+data/raw/**/*.manifest
+
+# --- Preprocessed tensors (regenerate via preprocess_csi.py) ---
+data/processed/*.npz
+data/processed/preprocess_manifest.csv
+
+# --- Trained models (regenerate via python/train/) ---
+models/**/*
+!models/.gitkeep
+
+# --- Dataset bundle / ad-hoc captures ---
+data.zip
+dataset.zip
+*.csv
+
+# --- Python bytecode ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Firmware build artifacts ---
+firmware/**/build/
+
+# --- Local env ---
+.env
+
+# --- Local text logs (keep requirements.txt) ---
+*.txt
+!requirements.txt
