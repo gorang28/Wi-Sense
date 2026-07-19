@@ -10,17 +10,18 @@
  *
  * Module 2: relay + LDR light automation.
  * Module 3: FSR406 pressure sensor (bed / sleep detection).
- * Module 4+5: cancel button + fall emergency countdown on OLED.
+ * Module 4+5: cancel button + fall emergency (see emergency_rx.c).
  */
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
 
 #include "wisense_classifier.h"
-#include "wisense_emergency.h"
 #include "wisense_fsr.h"
 #include "wisense_light.h"
 #include "wisense_oled.h"
+
+#include "emergency_rx.h"
 
 static const char *TAG = "wisense_hw";
 
@@ -28,9 +29,10 @@ static void on_class_changed(wisense_class_t new_class, void *ctx)
 {
     (void)ctx;
 
-    ESP_ERROR_CHECK(wisense_emergency_on_class_change(new_class));
+    bool skip_class_oled = false;
+    ESP_ERROR_CHECK(emergency_rx_on_class_change(new_class, &skip_class_oled));
 
-    if (!wisense_emergency_is_active()) {
+    if (!skip_class_oled) {
         esp_err_t err = wisense_oled_show_class(new_class);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "OLED update failed: %s", esp_err_to_name(err));
@@ -60,7 +62,7 @@ void app_main(void)
 
     ESP_ERROR_CHECK(wisense_light_init(-1, -1));
     ESP_ERROR_CHECK(wisense_fsr_init(-1));
-    ESP_ERROR_CHECK(wisense_emergency_init(-1));
+    ESP_ERROR_CHECK(emergency_rx_init());
 
     const wisense_classifier_ops_t *clf = wisense_classifier_get();
     ESP_ERROR_CHECK(clf->init());

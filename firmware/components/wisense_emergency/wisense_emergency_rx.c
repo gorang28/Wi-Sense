@@ -1,7 +1,9 @@
 /*
- * Fall emergency: 15 s OLED countdown + cancel button (Modules 4+5).
+ * RX fall-emergency state machine (Modules 4+5).
+ *
+ * Fall class → 15 s OLED countdown → cancel button or notify TX.
+ * Button cancels during countdown and after alert is active.
  */
-#include "driver/gpio.h"
 #include "esp_check.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -9,9 +11,11 @@
 
 #include "wisense_classifier.h"
 #include "wisense_emergency.h"
+#include "wisense_emergency_internal.h"
 #include "wisense_oled.h"
+#include "wisense_espnow_send.h"
 
-static const char *TAG = "wisense_emergency";
+static const char *TAG = "wisense_emergency_rx";
 
 typedef enum {
     EMERGENCY_IDLE = 0,
@@ -19,49 +23,72 @@ typedef enum {
     EMERGENCY_TRIGGERED,
 } emergency_state_t;
 
-static int s_button_gpio = -1;
 static bool s_ready;
 static emergency_state_t s_state = EMERGENCY_IDLE;
 static int s_countdown_sec;
 static wisense_class_t s_display_class = WISENSE_CLASS_EMPTY;
 static esp_timer_handle_t s_countdown_timer;
-
-static bool button_is_pressed(void)
-{
-    int level = gpio_get_level(s_button_gpio);
-#if CONFIG_WISENSE_EMERGENCY_BUTTON_ACTIVE_LOW
-    return level == 0;
-#else
-    return level != 0;
-#endif
-}
+static esp_timer_handle_t s_button_poll_timer;
 
 static void restore_class_display(void)
 {
     (void)wisense_oled_show_class(s_display_class);
 }
 
-static void notify_tx_stub(void)
+static void stop_button_poll(void)
 {
-    /* Module 7: ESP-NOW emergency packet to TX — stub for now. */
-    ESP_LOGW(TAG, "Emergency countdown finished — ESP-NOW notify TX (not implemented yet)");
+    if (s_button_poll_timer != NULL) {
+        esp_timer_stop(s_button_poll_timer);
+    }
 }
 
 static void cancel_emergency(const char *reason)
 {
+    const bool was_triggered = (s_state == EMERGENCY_TRIGGERED);
+
     ESP_LOGI(TAG, "Emergency cancelled (%s)", reason);
     esp_timer_stop(s_countdown_timer);
+    stop_button_poll();
+    wisense_emergency_buzzer_stop();
+    wisense_emergency_indicator_stop();
+
+    if (was_triggered) {
+        wisense_emergency_notify_tx_cancel();
+    }
+
     s_state = EMERGENCY_IDLE;
     restore_class_display();
+}
+
+static void button_poll_cb(void *arg)
+{
+    (void)arg;
+
+    if (s_state != EMERGENCY_TRIGGERED) {
+        return;
+    }
+
+    if (wisense_emergency_button_is_pressed()) {
+        cancel_emergency("button");
+    }
+}
+
+static void start_button_poll(void)
+{
+    stop_button_poll();
+    esp_timer_start_periodic(s_button_poll_timer, 100000ULL);
 }
 
 static void finish_emergency(void)
 {
     esp_timer_stop(s_countdown_timer);
     s_state = EMERGENCY_TRIGGERED;
-    notify_tx_stub();
+    wisense_emergency_buzzer_stop();
+    wisense_emergency_buzzer_start_alert();
+    wisense_emergency_notify_tx();
     (void)wisense_oled_show_emergency(true, 0);
-    ESP_LOGI(TAG, "Emergency triggered — TX notification pending (Module 7)");
+    start_button_poll();
+    ESP_LOGI(TAG, "Emergency active — press button to cancel");
 }
 
 static void countdown_timer_cb(void *arg)
@@ -72,7 +99,7 @@ static void countdown_timer_cb(void *arg)
         return;
     }
 
-    if (button_is_pressed()) {
+    if (wisense_emergency_button_is_pressed()) {
         cancel_emergency("button");
         return;
     }
@@ -84,7 +111,7 @@ static void countdown_timer_cb(void *arg)
     }
 
     (void)wisense_oled_show_emergency(true, s_countdown_sec);
-    ESP_LOGI(TAG, "Emergency countdown: %d s remaining (press button to cancel)", s_countdown_sec);
+    ESP_LOGI(TAG, "Countdown: %d s remaining (press button to cancel)", s_countdown_sec);
 }
 
 static void start_countdown(wisense_class_t cls)
@@ -94,8 +121,9 @@ static void start_countdown(wisense_class_t cls)
     s_state = EMERGENCY_COUNTDOWN;
 
     (void)wisense_oled_show_emergency(true, s_countdown_sec);
-    ESP_LOGI(TAG, "Fall detected — emergency countdown %d s (press button to cancel)",
-             s_countdown_sec);
+    ESP_LOGI(TAG, "Fall detected — %d s countdown (press button to cancel)", s_countdown_sec);
+
+    wisense_emergency_buzzer_start_countdown();
 
     esp_timer_stop(s_countdown_timer);
     esp_timer_start_periodic(s_countdown_timer, 1000000ULL);
@@ -107,37 +135,27 @@ esp_err_t wisense_emergency_init(int button_gpio)
         return ESP_OK;
     }
 
-    if (button_gpio < 0) {
-        button_gpio = CONFIG_WISENSE_EMERGENCY_BUTTON_GPIO;
-    }
+    ESP_RETURN_ON_ERROR(wisense_emergency_button_init(button_gpio), TAG, "button");
+    ESP_RETURN_ON_ERROR(wisense_emergency_buzzer_init(-1), TAG, "buzzer");
+    ESP_RETURN_ON_ERROR(wisense_emergency_indicator_init(-1), TAG, "led");
+    ESP_RETURN_ON_ERROR(wisense_espnow_emerg_sender_init(), TAG, "espnow");
 
-    gpio_config_t btn_cfg = {
-        .pin_bit_mask = (1ULL << button_gpio),
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    ESP_RETURN_ON_ERROR(gpio_config(&btn_cfg), TAG, "button gpio");
-
-    const esp_timer_create_args_t timer_args = {
+    const esp_timer_create_args_t countdown_args = {
         .callback = countdown_timer_cb,
         .name = "emerg_cd",
     };
-    ESP_RETURN_ON_ERROR(esp_timer_create(&timer_args, &s_countdown_timer), TAG, "timer");
+    ESP_RETURN_ON_ERROR(esp_timer_create(&countdown_args, &s_countdown_timer), TAG, "countdown timer");
 
-    s_button_gpio = button_gpio;
+    const esp_timer_create_args_t poll_args = {
+        .callback = button_poll_cb,
+        .name = "emerg_btn",
+    };
+    ESP_RETURN_ON_ERROR(esp_timer_create(&poll_args, &s_button_poll_timer), TAG, "button poll");
+
     s_state = EMERGENCY_IDLE;
     s_ready = true;
 
-    ESP_LOGI(TAG, "Emergency ready (button=GPIO%d pressed=%s, countdown=%ds)",
-             s_button_gpio,
-#if CONFIG_WISENSE_EMERGENCY_BUTTON_ACTIVE_LOW
-             "LOW",
-#else
-             "HIGH",
-#endif
-             CONFIG_WISENSE_EMERGENCY_COUNTDOWN_SEC);
+    ESP_LOGI(TAG, "RX emergency ready (countdown=%ds)", CONFIG_WISENSE_EMERGENCY_COUNTDOWN_SEC);
     return ESP_OK;
 }
 
@@ -159,7 +177,11 @@ esp_err_t wisense_emergency_on_class_change(wisense_class_t new_class)
 
     if (s_state == EMERGENCY_TRIGGERED) {
         if (new_class != WISENSE_CLASS_FALL) {
+            stop_button_poll();
+            wisense_emergency_notify_tx_cancel();
             s_state = EMERGENCY_IDLE;
+            wisense_emergency_buzzer_stop();
+            wisense_emergency_indicator_stop();
             (void)wisense_oled_show_class(new_class);
         }
         return ESP_OK;

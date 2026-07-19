@@ -1,0 +1,34 @@
+menu "WiSense ESP-NOW (emergency)"
+
+    config WISENSE_ESPNOW_WIFI_CHANNEL
+        int "Wi-Fi / ESP-NOW channel"
+        range 1 14
+        default 11
+        help
+            Must match csi_send and csi_recv (default 11).
+
+    config WISENSE_ESPNOW_TX_MAC_ADDR0
+        hex "TX (ESP32-CAM) MAC byte 0"
+        default 0x1A
+
+    config WISENSE_ESPNOW_TX_MAC_ADDR1
+        hex "TX (ESP32-CAM) MAC byte 1"
+        default 0x00
+
+    config WISENSE_ESPNOW_TX_MAC_ADDR2
+        hex "TX (ESP32-CAM) MAC byte 2"
+        default 0x00
+
+    config WISENSE_ESPNOW_TX_MAC_ADDR3
+        hex "TX (ESP32-CAM) MAC byte 3"
+        default 0x00
+
+    config WISENSE_ESPNOW_TX_MAC_ADDR4
+        hex "TX (ESP32-CAM) MAC byte 4"
+        default 0x00
+
+    config WISENSE_ESPNOW_TX_MAC_ADDR5
+        hex "TX (ESP32-CAM) MAC byte 5"
+        default 0x00
+
+endmenu

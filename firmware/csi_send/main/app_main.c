@@ -24,6 +24,8 @@
 #include "esp_netif.h"
 #include "esp_now.h"
 
+#include "emergency_tx.h"
+
 #define CONFIG_LESS_INTERFERENCE_CHANNEL   11
 
 #if CONFIG_IDF_TARGET_ESP32C5 || CONFIG_IDF_TARGET_ESP32C61 || (CONFIG_IDF_TARGET_ESP32C6 && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0))
@@ -154,6 +156,7 @@ void app_main()
         .peer_addr = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
     };
     wifi_esp_now_init(peer);
+    ESP_ERROR_CHECK(emergency_tx_init());
 
     ESP_LOGI(TAG, "================ CSI SEND ================");
     ESP_LOGI(TAG, "wifi_channel: %d, send_frequency: %d, mac: " MACSTR,
