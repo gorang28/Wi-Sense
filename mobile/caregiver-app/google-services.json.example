@@ -29,7 +29,7 @@
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+          "current_key": "REPLACE_WITH_YOUR_FIREBASE_API_KEY"
         }
       ],
       "services": {
