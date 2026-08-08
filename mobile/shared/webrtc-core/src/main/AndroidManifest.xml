@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Needed by both apps: the Phase 3 manual TCP signaling socket, and
+         WebRTC's own network-change monitoring. Camera/mic permissions are
+         NOT declared here — only resident-app (the sender) needs those;
+         caregiver-app is receive-only. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+</manifest>

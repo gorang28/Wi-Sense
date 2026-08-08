@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- PlantGuard (existing, untouched) ---
+    // Allow users to read and write their own data.
+    // This includes their main user document and their sub-collection of plant profiles.
+    match /users/{userId}/{documents=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // --- Wi-Sense ---
+    // All Wi-Sense collections are prefixed wisense_ to stay clearly separated
+    // from PlantGuard's data in this shared project.
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isHouseMember(houseId) {
+      let house = get(/databases/$(database)/documents/wisense_houses/$(houseId)).data;
+      return signedIn() &&
+        (house.ownerId == request.auth.uid || request.auth.uid in house.caregiverIds);
+    }
+
+    match /wisense_users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    // Reverse lookup so a resident can resolve a caregiver's short code to
+    // their real UID (the UID, not the code, is what caregiverIds and the
+    // rules below actually check).
+    match /wisense_caregiver_codes/{code} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+    }
+
+    match /wisense_houses/{houseId} {
+      allow read: if isHouseMember(houseId);
+      // Only the owner manages the house doc (including adding caregiver UIDs).
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    match /wisense_devices/{bleMac} {
+      allow read, write: if signedIn() && isHouseMember(resource.data.houseId);
+      allow create: if signedIn() && isHouseMember(request.resource.data.houseId);
+    }
+
+    // ownerId/caregiverIds are denormalized onto the emergency doc itself
+    // (copied from the house doc when the resident creates it) rather than
+    // checked via isHouseMember()'s get() — a list query's rule can't call
+    // get() on another document to prove itself safe when there are zero
+    // matching results yet, which is exactly the caregiver's "waiting for
+    // an alert" listener before any emergency exists (confirmed on-device:
+    // PERMISSION_DENIED even with correct caregiverIds on the house doc).
+    function isEmergencyMember(data) {
+      return signedIn() &&
+        (data.ownerId == request.auth.uid || request.auth.uid in data.caregiverIds);
+    }
+
+    match /wisense_emergencies/{emergencyId} {
+      allow read, update: if isEmergencyMember(resource.data);
+      allow create: if isEmergencyMember(request.resource.data);
+
+      match /signaling/{peerRole} {
+        allow read, write: if isEmergencyMember(
+          get(/databases/$(database)/documents/wisense_emergencies/$(emergencyId)).data
+        );
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+# Python dependencies for WiSense CSI pipeline
+# Install with: pip install -r requirements.txt
+
+# Data processing
+numpy
+pandas
+
+# Serial communication
+pyserial
+
+# GUI (legacy ASCII viewer only)
+PyQt5
+pyqtgraph
+matplotlib
+
+# Scientific computing (preprocess + future training)
+scipy
+statsmodels
+scikit-learn
+joblib

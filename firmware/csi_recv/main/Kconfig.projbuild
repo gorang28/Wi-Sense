@@ -1,0 +1,18 @@
+menu "WiSense CSI receiver"
+
+    config WISENSE_CSI_STREAM_BINARY
+        bool "Stream raw CSI frames over USB"
+        default y if !WISENSE_CLASSIFIER_TINYML
+        default n
+        help
+            Emits the binary CSI frames that python/capture/capture_csi_binary.py
+            and the dataset collection scripts read. Required for capturing
+            training data or running the PC-side live detector.
+
+            Turn it off when the on-device model is doing the classifying: the
+            frames and ESP_LOG output share the one USB-Serial-JTAG peripheral,
+            so ~100 binary frames a second make the console unreadable in
+            idf.py monitor. Default follows the classifier backend for that
+            reason.
+
+endmenu

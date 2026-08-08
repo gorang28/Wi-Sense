@@ -1,0 +1,15 @@
+# Name,   Type, SubType, Offset,  Size, Flags
+# Offsets left blank (auto-placed right after the partition table itself,
+# like ESP-IDF's own partitions_singleapp.csv default) because this project
+# pins CONFIG_PARTITION_TABLE_OFFSET=0xa000 (not IDF's usual 0x8000) for the
+# classifier's UART/console setup — a hardcoded 0x9000 for nvs, copied from
+# the traditional 0x8000-based layout, collides with the table's own sector.
+#
+# Real hardware is a 16MB flash ESP32-S3-DevKitC-1 N16R8, but the project
+# previously built against IDF's 2MB-flash default, leaving the 1MB factory
+# app partition ~96% full before any TinyML runtime was added. 4MB leaves
+# ~12MB of the 16MB flash unallocated for a later OTA/model partition once
+# on-device TinyML inference is added.
+nvs,      data, nvs,     ,        0x6000,
+phy_init, data, phy,     ,        0x1000,
+factory,  app,  factory, ,        4M,

@@ -1,0 +1,92 @@
+# This file was generated using idf.py save-defconfig. It can be edited manually.
+# Espressif IoT Development Framework (ESP-IDF) 5.5.0 Project Minimal Configuration
+#
+# Board is ESP32-S3-DevKitC-1 N16R8 (16MB flash, confirmed via
+# `esptool.py flash_id` — see docs/handoff.md history). Without an explicit
+# override IDF defaults new projects to 2MB, which silently wastes 14MB of
+# real flash and left almost no partition headroom. Custom table below gives
+# the app a 4MB single-app partition (was IDF's default 1MB, already ~96%
+# full before adding any TinyML runtime) with plenty of the 16MB left
+# unallocated for a future OTA/model partition.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_OFFSET=0xa000
+
+# Default log level is INFO, and ~55 ESP_LOG* call sites across the
+# peripheral stack (fall countdown, light/relay, BLE, OLED) fire during
+# normal operation — including once per second for the entire 15s fall
+# countdown. Those log lines and the binary CSI stream share the same
+# USB-Serial-JTAG channel (this board has no secondary console, see below),
+# so keeping them at ERROR by default removes the dominant source of CSI
+# frame corruption during exactly the capture sessions that matter most
+# (Fall, and every class-transition boundary). The csi_console_vprintf
+# mutex in app_main.c is a second, independent layer of protection for
+# whatever still logs at ERROR (or if this is temporarily raised for
+# debugging).
+CONFIG_LOG_DEFAULT_LEVEL_ERROR=y
+CONFIG_LOG_DEFAULT_LEVEL=1
+
+# Keep the compile-time ceiling at INFO even though the default stays ERROR.
+# The on-device classifier raises only its own tags at runtime
+# (esp_log_level_set in wisense_csi_infer_init), so detection output is
+# visible while the ~55 peripheral log sites above stay silent — which is what
+# keeps the binary CSI stream clean during capture sessions. Without this the
+# ESP_LOGI calls would be compiled out entirely and no runtime call could
+# bring them back.
+CONFIG_LOG_MAXIMUM_LEVEL_INFO=y
+CONFIG_LOG_MAXIMUM_LEVEL=3
+
+# This board (ESP32-S3-DevKitC-1) has no external USB-UART bridge on UART0
+# (GPIO43/44 are unconnected) — only the native USB-Serial/JTAG peripheral
+# (GPIO19/20, the single USB-C port) reaches the PC. Console must be that
+# peripheral so idf.py monitor's keyboard passthrough (e/p/m/f) actually
+# reaches the classifier, not just log output. classifier_placeholder.c
+# reads from this same peripheral when it's the console (see its
+# CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG branch).
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# Classify on-device from the live CSI stream instead of reading e/p/m/f keys.
+# This also turns off the binary CSI stream by default (see
+# WISENSE_CSI_STREAM_BINARY): the two share the one USB-Serial-JTAG port, so
+# 100 frames/s would drown the detector's own output. Set
+# CONFIG_WISENSE_CSI_STREAM_BINARY=y when collecting datasets or running the
+# PC-side detector again.
+CONFIG_WISENSE_CLASSIFIER_TINYML=y
+
+# FALL reporting is off: the heuristic rule (motion burst -> abrupt stillness)
+# false-triggers on ordinary stopping, and the trained fall stage scores
+# held-out falls at 0.55 mean. Presence/motion/empty are unaffected. The fall
+# probability is still computed and logged, so it can be watched without
+# acting on it — set CONFIG_WISENSE_CSI_FALL_MODE_RULE=y to re-enable.
+# NOTE: this also means the fall-emergency path (buzzer, servo, BLE phone
+# trigger) is never reached from the classifier.
+CONFIG_WISENSE_CSI_FALL_MODE_OFF=y
+
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=30
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=128
+CONFIG_ESP_WIFI_CSI_ENABLED=y
+CONFIG_ESP_WIFI_AMPDU_TX_ENABLED=n
+
+# BLE (NimBLE) for the fall-emergency phone trigger.
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_BLUEDROID_ENABLED=n
+
+# Peripheral GPIO pins — this board is ESP32-S3-DevKitC-1 N16R8 (16MB quad
+# flash + 8MB embedded octal PSRAM). GPIO26-37 are reserved for flash/PSRAM
+# on this exact board and must NOT be reused here; the component Kconfig
+# defaults (26/32/34/etc.) are only valid for the plain ESP32 DevKit used
+# by wisense_hw. FSR must stay on an ADC1 pin (GPIO1-10) since ADC2 is
+# unusable while Wi-Fi/CSI is active.
+CONFIG_WISENSE_OLED_I2C_SDA_GPIO=8
+CONFIG_WISENSE_OLED_I2C_SCL_GPIO=9
+CONFIG_WISENSE_LIGHT_RELAY_GPIO=4
+CONFIG_WISENSE_LIGHT_LDR_GPIO=5
+CONFIG_WISENSE_FSR_GPIO=6
+CONFIG_WISENSE_EMERGENCY_BUTTON_GPIO=7
+CONFIG_WISENSE_EMERGENCY_BUZZER_GPIO=15
+CONFIG_WISENSE_EMERGENCY_LED_GPIO=16
+CONFIG_WISENSE_SERVO_GPIO=13

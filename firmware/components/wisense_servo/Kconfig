@@ -1,0 +1,49 @@
+menu "WiSense Servo (privacy flap)"
+
+    config WISENSE_SERVO_GPIO
+        int "Servo signal GPIO"
+        default 13
+        help
+            LEDC PWM output to the servo signal wire. Default is a placeholder
+            picked for ESP32-CAM bring-up notes; re-check against the real
+            ESP32-S3 board's pinout (some GPIO numbers are reserved for
+            octal PSRAM/flash on many S3 modules) before first flash.
+
+    config WISENSE_SERVO_PWM_FREQ_HZ
+        int "Servo PWM frequency (Hz)"
+        default 50
+        help
+            Standard hobby servo control frequency (20 ms period).
+
+    config WISENSE_SERVO_MIN_PULSE_US
+        int "Pulse width at 0 degrees (us)"
+        range 400 3000
+        default 500
+        help
+            Servo datasheet minimum pulse width, corresponding to 0 degrees.
+            SG90-class servos are typically ~500us; adjust to your servo.
+
+    config WISENSE_SERVO_MAX_PULSE_US
+        int "Pulse width at 180 degrees (us)"
+        range 400 3000
+        default 2500
+        help
+            Servo datasheet maximum pulse width, corresponding to 180
+            degrees. SG90-class servos are typically ~2500us.
+
+    config WISENSE_SERVO_CLOSED_ANGLE_DEG
+        int "Closed/idle angle (degrees)"
+        range 0 180
+        default 0
+        help
+            Flap closed over the phone (idle / no emergency). Also the
+            position forced at boot.
+
+    config WISENSE_SERVO_OPEN_ANGLE_DEG
+        int "Open/alert angle (degrees)"
+        range 0 180
+        default 90
+        help
+            Flap open, exposing the phone, once a fall alert fires.
+
+endmenu

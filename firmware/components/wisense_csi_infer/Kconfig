@@ -1,0 +1,174 @@
+menu "WiSense CSI inference (TinyML)"
+    visible if WISENSE_CLASSIFIER_TINYML
+
+    comment "Defaults mirror python/live/live_cascade_detect.py; changing them"
+    comment "here makes the device disagree with the PC pipeline."
+
+    config WISENSE_CSI_RING_PACKETS
+        int "CSI packets buffered for one feature window"
+        default 256
+        range 64 512
+        help
+            Must cover the whole feature window at the transmitter's packet
+            rate: 2.0 s at 100 Hz needs 200. Costs 128 bytes each
+            (32 subcarriers x float), so 256 packets is 32 KB of internal RAM.
+            This buffer is also reused to hold the calibration samples.
+
+    config WISENSE_CSI_EXPECTED_CHANNEL
+        int "WiFi channel the transmitter uses"
+        default 11
+        range 1 14
+        help
+            Used only in the "no CSI packets" warning, to point at the most
+            likely cause. Keep it equal to CONFIG_LESS_INTERFERENCE_CHANNEL in
+            app_main.c and to the channel csi_send transmits on.
+
+    config WISENSE_CSI_QUEUE_DEPTH
+        int "CSI packets queued between the WiFi callback and inference"
+        default 6
+        range 2 32
+        help
+            Each slot holds one raw packet (~776 bytes). The queue never blocks
+            the WiFi callback; a full queue drops the newest packet and counts
+            it, matching how the binary stream's writer queue behaves.
+
+    config WISENSE_CSI_WINDOW_MS
+        int "Feature window (ms)"
+        default 2000
+        help
+            Must equal window_2s_sec from preprocess_config.json. The trees were
+            fitted on 2 s windows and mean nothing on a different span.
+
+    config WISENSE_CSI_HOP_MS
+        int "Minimum CSI time between predictions (ms)"
+        default 250
+
+    config WISENSE_CSI_MIN_COVERAGE_MILLI
+        int "Required fraction of the window before predicting (x1000)"
+        default 950
+        range 500 1000
+        help
+            A rolling buffer capped at the window length normally sits one CSI
+            period short of the exact boundary, because the oldest sample is
+            evicted before the newest arrives. 950 accepts a nearly full window
+            instead of waiting for an impossible exact span.
+
+    config WISENSE_CSI_CALIBRATION_PACKETS
+        int "Empty-room packets sampled for the baseline"
+        default 1000
+        range 0 20000
+        help
+            At ~100 Hz, 1000 packets is about 10 s. Only
+            WISENSE_CSI_RING_PACKETS of them are retained, subsampled evenly
+            across the whole period, which is ample for a median. 0 keeps the
+            baseline the model was trained with and skips calibration.
+
+    config WISENSE_CSI_GRACE_SEC
+        int "Seconds to leave the room before calibration starts"
+        default 15
+        range 0 120
+        help
+            Calibrating the moment the board boots bakes whoever is standing
+            next to it into the "empty" baseline, after which the room never
+            reads EMPTY again.
+
+    config WISENSE_CSI_SMOOTHING_MILLI
+        int "EMA factor for stage probabilities (x1000)"
+        default 400
+        range 1 1000
+        help
+            1000 disables smoothing. Lower is steadier but slower to react.
+            Single-window probabilities swing hard near a threshold, so
+            averaging before thresholding is what removes EMPTY/PRESENCE
+            flicker — debouncing the boolean alone only delays it.
+
+    config WISENSE_CSI_OCCUPIED_CONSECUTIVE
+        int "Consecutive windows required to enter OCCUPIED"
+        default 2
+        range 1 20
+
+    config WISENSE_CSI_OCCUPIED_OFF_CONSECUTIVE
+        int "Consecutive windows required to drop back to EMPTY"
+        default 6
+        range 1 40
+        help
+            Higher than the ON count on purpose. Recorded runs on this hardware
+            flickered to EMPTY while someone sat very still at the symmetric
+            value of 2, which is the Python default; 6 is the value that fixed
+            it in live testing.
+
+    config WISENSE_CSI_MOTION_CONSECUTIVE
+        int "Consecutive windows required to flip PRESENCE<->MOTION"
+        default 2
+        range 1 20
+
+    choice WISENSE_CSI_FALL_MODE
+        prompt "Fall detection source"
+        default WISENSE_CSI_FALL_MODE_RULE
+
+        config WISENSE_CSI_FALL_MODE_RULE
+            bool "Heuristic rule (motion burst then stillness)"
+            help
+                Keys off the occupied and motion stages, which have orders of
+                magnitude more training data than the fall stage.
+
+        config WISENSE_CSI_FALL_MODE_ML
+            bool "Trained fall stage"
+            help
+                The fall stage scores held-out falls at 0.55 mean — it has ~127
+                positive windows from ten recordings of a single fall at one
+                spot and does not generalise. Not recommended.
+
+        config WISENSE_CSI_FALL_MODE_OFF
+            bool "Never report FALL"
+    endchoice
+
+    config WISENSE_CSI_FALL_MOTION_HIGH_MILLI
+        int "Motion probability counting as the burst before a fall (x1000)"
+        default 450
+        depends on WISENSE_CSI_FALL_MODE_RULE
+
+    config WISENSE_CSI_FALL_MOTION_LOW_MILLI
+        int "Motion probability counting as stillness after a fall (x1000)"
+        default 80
+        depends on WISENSE_CSI_FALL_MODE_RULE
+
+    config WISENSE_CSI_FALL_STILL_CONSECUTIVE
+        int "Still windows required after the burst before FALL is declared"
+        default 2
+        range 1 20
+        depends on WISENSE_CSI_FALL_MODE_RULE
+
+    config WISENSE_CSI_FALL_LOOKBACK_MS
+        int "How recently the motion burst must have happened (ms)"
+        default 3000
+        depends on WISENSE_CSI_FALL_MODE_RULE
+
+    config WISENSE_CSI_FALL_HOLD_MS
+        int "How long FALL is held once triggered (ms)"
+        default 6000
+        depends on WISENSE_CSI_FALL_MODE_RULE
+
+    config WISENSE_CSI_FALL_CONSECUTIVE
+        int "Consecutive fall-positive windows required for FALL"
+        default 3
+        range 1 20
+        depends on WISENSE_CSI_FALL_MODE_ML
+
+    config WISENSE_CSI_LOG_PREDICTIONS
+        bool "Log every prediction"
+        default y
+        help
+            One line per prediction, in the same shape as the PC tool's output,
+            so device and PC runs can be compared directly. Turn off once the
+            demo is stable to keep the console quiet.
+
+    config WISENSE_CSI_SELFTEST
+        bool "Verify the compiled model against the PC model at boot"
+        default y
+        help
+            Scores vectors baked in by python/export/check_c_parity.py and logs
+            PASS or FAIL. Cheap (a few milliseconds, once) and the only check
+            that the exported tables and this firmware are still in step.
+
+endmenu

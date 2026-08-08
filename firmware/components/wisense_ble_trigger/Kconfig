@@ -1,0 +1,10 @@
+menu "WiSense BLE Trigger (phone camera)"
+
+    config WISENSE_BLE_TRIGGER_DEVICE_NAME
+        string "BLE advertised device name"
+        default "WiSense-RX"
+        help
+            Name the phone app (or a generic BLE scanner for testing before
+            the app exists) looks for when connecting.
+
+endmenu

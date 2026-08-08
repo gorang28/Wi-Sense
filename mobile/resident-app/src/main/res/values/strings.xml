@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Wi-Sense Resident</string>
+    <!-- Web-type OAuth client from google-services.json — Credential Manager's
+         GetGoogleIdOption needs this (not the Android-type client) to request
+         an ID token Firebase Auth can verify. -->
+    <string name="google_web_client_id" translatable="false">316037626448-fbbes76j5q5ik0j85gha33pd1io12569.apps.googleusercontent.com</string>
+
+    <string name="monitor_channel_name">Monitoring</string>
+    <string name="monitor_channel_description">Persistent notification while the fall monitor is running</string>
+
+    <string name="monitor_notification_starting">Starting monitor…</string>
+    <string name="monitor_notification_scanning">Looking for the room sensor…</string>
+    <string name="monitor_notification_connecting">Connecting to the room sensor…</string>
+    <string name="monitor_notification_connected">Monitoring active — sensor connected</string>
+    <string name="monitor_notification_retrying">Sensor disconnected — retrying in %1$d s</string>
+    <string name="monitor_notification_give_up">Sensor disconnected — tap to reconnect</string>
+    <string name="monitor_notification_emergency">Fall detected — streaming camera and mic</string>
+</resources>

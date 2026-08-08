@@ -1,0 +1,77 @@
+menu "WiSense Emergency (Fall + button)"
+
+    config WISENSE_EMERGENCY_BUTTON_GPIO
+        int "Cancel button GPIO"
+        default 27
+        help
+            Push button input on RX. Default wiring: button to GND, GPIO with internal pull-up.
+
+    choice WISENSE_EMERGENCY_BUTTON_ACTIVE_LEVEL
+        prompt "GPIO level when button is pressed"
+        default WISENSE_EMERGENCY_BUTTON_ACTIVE_LOW
+        help
+            Most momentary buttons tie GPIO to GND when pressed (active LOW).
+
+        config WISENSE_EMERGENCY_BUTTON_ACTIVE_LOW
+            bool "LOW = pressed"
+
+        config WISENSE_EMERGENCY_BUTTON_ACTIVE_HIGH
+            bool "HIGH = pressed"
+    endchoice
+
+    config WISENSE_EMERGENCY_COUNTDOWN_SEC
+        int "Fall emergency countdown (seconds)"
+        range 1 120
+        default 15
+        help
+            Seconds shown on the OLED before notifying TX (ESP-NOW in a later module).
+
+    config WISENSE_EMERGENCY_BUZZER_GPIO
+        int "Buzzer GPIO"
+        default 25
+        help
+            Active buzzer signal pin (HIGH or LOW turns tone ON per choice below).
+
+    choice WISENSE_EMERGENCY_BUZZER_ON_LEVEL
+        prompt "GPIO level that turns the buzzer ON"
+        default WISENSE_EMERGENCY_BUZZER_ON_HIGH
+
+        config WISENSE_EMERGENCY_BUZZER_ON_HIGH
+            bool "HIGH = buzzer ON"
+
+        config WISENSE_EMERGENCY_BUZZER_ON_LOW
+            bool "LOW = buzzer ON"
+    endchoice
+
+    config WISENSE_EMERGENCY_BUZZER_PULSE_MS
+        int "Fast beep pulse length (ms)"
+        range 50 500
+        default 120
+        help
+            ON time for each short beep during the countdown phase.
+
+    config WISENSE_EMERGENCY_BUZZER_FAST_INTERVAL_MS
+        int "Fast beep interval during countdown (ms)"
+        range 100 2000
+        default 300
+        help
+            Time between short beeps while the 15 s fall countdown runs.
+
+    config WISENSE_EMERGENCY_LED_GPIO
+        int "Emergency indicator LED GPIO"
+        default 23
+        help
+            LED output synced with buzzer (ON/OFF with fast beeps; solid ON in alert).
+
+    choice WISENSE_EMERGENCY_LED_ON_LEVEL
+        prompt "GPIO level that turns the emergency LED ON"
+        default WISENSE_EMERGENCY_LED_ON_HIGH
+
+        config WISENSE_EMERGENCY_LED_ON_HIGH
+            bool "HIGH = LED ON"
+
+        config WISENSE_EMERGENCY_LED_ON_LOW
+            bool "LOW = LED ON"
+    endchoice
+
+endmenu

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WiSense Caregiver</string>
+    <!-- Web-type OAuth client from google-services.json — Credential Manager's
+         GetGoogleIdOption needs this (not the Android-type client) to request
+         an ID token Firebase Auth can verify. -->
+    <string name="google_web_client_id" translatable="false">316037626448-fbbes76j5q5ik0j85gha33pd1io12569.apps.googleusercontent.com</string>
+</resources>
